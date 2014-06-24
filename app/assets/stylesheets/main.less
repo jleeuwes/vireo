@@ -1,0 +1,42 @@
+
+h1 {
+  margin-bottom: 0;
+}
+
+.credits {
+  margin-top: 0;
+  font-size: 80%;
+}
+
+.generate-numbers(9);
+
+.generate-numbers(@n, @i: 1) when (@i <= @n) {
+  .number@{i} {
+    float: left;
+    display: block;
+    text-indent: 100px;
+    overflow: hidden;
+    padding: 0;
+    margin: 1px;
+    width: 3px;
+    height: 5px;
+    background-image: url('/assets/images/@{i}.png');
+  }
+  .generate-numbers(@n, (@i + 1));
+}
+
+input {
+  clear: both;
+  text-align: center;
+  border: solid 1px #aaa;
+}
+
+input.empty {
+  background-color: #ddd;
+}
+
+input.wrong {
+  border: solid 1px #a00;
+  background-color: #faa;
+}
+
