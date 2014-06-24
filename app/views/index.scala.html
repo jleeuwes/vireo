@@ -20,8 +20,14 @@
     }
   }
 
-  var Table = React.createClass({
-    getInitialState: function() {
+  var sum = function(xs) {
+    return xs.reduce(function(accum, v) {
+      return accum + v;
+    });
+  }
+
+  var Table = React.createClass(
+  { getInitialState: function() {
       return { tdata: numbers };
     }
   , cellChanged: function(r, c, val) {
@@ -67,13 +73,19 @@
       if (value == 0) value = '';
 
       var classes = React.addons.classSet({
-        'wrong': value == ''
+        'empty': value == ''
       });
 
-      return <td><input type="text" size="1" value={value}
-              className={classes}
-              onChange={this.handleChange} /></td>;
-              //       ^ partial application would be nice
+      var nums      = [1,3,4,6];
+      var numStr    = nums.join("");
+      var numBitPat = sum(nums.map(function(i) { return Math.pow(2, i-1); }));
+      var numImg    = "/assets/images/pat" + numBitPat + ".png";
+      
+      return  <td><input type="text" size="1" value={value}
+                className={classes}
+                onChange={this.handleChange} />
+              <img src={numImg} alt={numStr} /></td>;
+              // partial application for handleChange would be nice
     }
   });
 
