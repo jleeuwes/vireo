@@ -1,7 +1,85 @@
-@(message: String)
+@main("vireo sudoku") {
+  <h1><img  src="@routes.Assets.at("images/vireo.png")"
+            alt="vireo huttoni"/> vireo sudoku</h1>
+  <p class="credits">(image by <a
+  href="http://www.flickr.com/photos/minette_layne/2893938782/">Minette
+  Layne</a>, licensed <a
+  href="https://creativecommons.org/licenses/by-nc/2.0/">cc-by-nc</a>)</p>
+  
+  <p>Werkt dit?</p>
 
-@main("Welcome to Play") {
+  <div id="sudoku"></div>
+  <script type="text/jsx">
+  /** @@jsx React.DOM */
 
-    @play20.welcome(message)
+  var numbers = [];
+  for (var r = 0; r < 9; r++) {
+    numbers[r] = [];
+    for (var c = 0; c < 9; c++) {
+      numbers[r][c] = 0;
+    }
+  }
 
+  var Table = React.createClass({
+    getInitialState: function() {
+      return { tdata: numbers };
+    }
+  , cellChanged: function(r, c, val) {
+      if(val >= 0 && val <= 9) {
+        this.state.tdata[r][c] = val;
+        this.setState(this.state); // I think I'm cheating
+      }
+    }
+  , render: function() {
+      var changed = this.cellChanged;
+      var rows = this.state.tdata.map(function(rdata, i) {
+        return <Row cellChanged={changed} iRow={i} rdata={rdata} />;
+      });
+      return (
+        <table>
+        {rows}
+        </table>
+      );
+    }
+  });
+
+  var Row = React.createClass({
+    render: function() {
+      var iRow = this.props.iRow;
+      var cellChanged = this.props.cellChanged;
+      var cells = this.props.rdata.map(function(cdata, i) {
+        return <Cell cellChanged={cellChanged} iRow={iRow} iCol={i} cdata={cdata} />;
+      });
+      return <tr>{cells}</tr>;
+    }
+  });
+
+  var Cell = React.createClass({
+    handleChange: function(event) {
+      this.props.cellChanged
+        ( this.props.iRow
+        , this.props.iCol
+        , event.target.value
+        );
+    }
+  , render: function() {
+      var value = this.props.cdata;
+      if (value == 0) value = '';
+
+      var classes = React.addons.classSet({
+        'wrong': value == ''
+      });
+
+      return <td><input type="text" size="1" value={value}
+              className={classes}
+              onChange={this.handleChange} /></td>;
+              //       ^ partial application would be nice
+    }
+  });
+
+  React.renderComponent(
+    <Table/>,
+    document.getElementById('sudoku')
+  );
+  </script>
 }

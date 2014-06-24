@@ -1,0 +1,18 @@
+
+h1 {
+  margin-bottom: 0;
+}
+
+.credits {
+  margin-top: 0;
+  font-size: 80%;
+}
+
+input {
+  border: solid 1px #aaa;
+}
+
+input.wrong {
+  border: solid 1px #a00;
+  background-color: #faa;
+}
