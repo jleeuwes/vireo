@@ -71,18 +71,19 @@ class Sudoku (symbols: Set[Int], values: Vector[Option[Int]]) {
   }
   
   // Return all cell indices that are visible from the given (row, col)
-  def visibleFrom(row: Int, col: Int) = {
+  def visibleFrom(row: Int, col: Int, includeSelf: Boolean = true) = {
     val block = toBlock(row, col)
 
     allCells().filter { case (row2, col2) =>
-      col == col2 || row == row2 || block == toBlock(row2, col2)
+      (col == col2 || row == row2 || block == toBlock(row2, col2)) &&
+      (includeSelf || !(col == col2 && row == row2))
     }
   }
 
   def possibilities(row: Int, col: Int) : Set[Int] = {
     var poss  = symbols
 
-    visibleFrom(row, col).foreach { case (row2, col2) =>
+    visibleFrom(row, col, false).foreach { case (row2, col2) =>
       // Remove the value in cell there from possibilities.
       table(index(row2, col2)).foreach { value => poss = poss - value }
 

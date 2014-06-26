@@ -25,7 +25,7 @@ object Application extends Controller {
         val sudoku = sudokuSubmit.toSudoku(1,9)
         val changes = sudoku.visibleFrom(sudokuSubmit.row, sudokuSubmit.column).map
           { case (r,c) =>
-            Json.obj("row" -> r, "col" -> c, "possible" -> sudoku.possibilities(r,c))
+            Json.obj("row" -> r, "column" -> c, "possible" -> sudoku.possibilities(r,c))
           }
 
         print(changes)
