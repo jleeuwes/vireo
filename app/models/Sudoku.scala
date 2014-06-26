@@ -58,30 +58,39 @@ class Sudoku (symbols: Set[Int], values: Vector[Option[Int]]) {
 
   def toRow(index: Int)     : Int = index / nrOfSymbols
   def toColumn(index: Int)  : Int = index % nrOfSymbols
-  def toBlock(index: Int)   : Int = toRow(index) / blockSide * blockSide + toColumn(index) / blockSide
-  
+  def toBlock(index: Int)   : Int = toBlock(toRow(index), toColumn(index))
+  def toBlock(row: Int, col: Int) : Int
+    = row / blockSide * blockSide + col / blockSide
+
   // def possibilities_(row: Int, col: Int) : Set[Int] = {
   //   allRows(row) & allColumns(col) & allBlocks(toBlock(index(row, col)))
   // }
 
+  def allCells() = {
+    table.indices.map ( i => (toRow(i), toColumn(i)) )
+  }
+  
+  // Return all cell indices that are visible from the given (row, col)
+  def visibleFrom(row: Int, col: Int) = {
+    val block = toBlock(row, col)
+
+    allCells().filter { case (row2, col2) =>
+      col == col2 || row == row2 || block == toBlock(row2, col2)
+    }
+  }
+
   def possibilities(row: Int, col: Int) : Set[Int] = {
-    val here  = index(row, col)
-    val block = toBlock(here)
     var poss  = symbols
 
-    table.indices.foreach { there =>
-      if (  col    == toColumn(there)
-         || row    == toRow(there)
-         || block  == toBlock(there)
-      ) {
-        // Remove the value in cell there from possibilities.
-        table(there).foreach { value => poss = poss - value }
-        // This would be a more clear but more verbose way:
-        // table(there) match {
-        //   case Some(value) => poss = poss - value
-        //   case None =>  // ugly no-op
-        // }
-      }
+    visibleFrom(row, col).foreach { case (row2, col2) =>
+      // Remove the value in cell there from possibilities.
+      table(index(row2, col2)).foreach { value => poss = poss - value }
+
+      // This would be a more clear but more verbose way:
+      // table(there) match {
+      //   case Some(value) => poss = poss - value
+      //   case None =>  // ugly no-op
+      // }
     }
 
     return poss

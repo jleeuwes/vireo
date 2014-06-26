@@ -23,8 +23,13 @@ object Application extends Controller {
       }
     , sudokuSubmit => {
         val sudoku = sudokuSubmit.toSudoku(1,9)
-        print(sudoku)
-        Ok(Json.obj("hoi" -> 2))
+        val changes = sudoku.visibleFrom(sudokuSubmit.row, sudokuSubmit.column).map
+          { case (r,c) =>
+            Json.obj("row" -> r, "col" -> c, "possible" -> sudoku.possibilities(r,c))
+          }
+
+        print(changes)
+        Ok(Json.toJson(changes))
       }
     )
   }
