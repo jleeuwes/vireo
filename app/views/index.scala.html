@@ -26,14 +26,33 @@
     });
   }
 
+  var console_error = function(xhr, status, err) {
+    console.error(this.props.url, status, err.toString());
+  }
+
   var Table = React.createClass(
   { getInitialState: function() {
       return { tdata: numbers };
     }
   , cellChanged: function(r, c, val) {
+      val = parseInt(val)
       if(val >= 0 && val <= 9) {
-        this.state.tdata[r][c] = val;
+        var tdata = this.state.tdata
+        tdata[r][c] = val;
         this.setState(this.state); // I think I'm cheating
+        $.ajax({
+          // http://stackoverflow.com/questions/12693947/jquery-ajax-how-to-send-json-instead-of-querystring
+          url: this.props.url,
+          type: 'POST',
+          dataType: 'json',
+          contentType: 'application/json',
+          data: JSON.stringify({ table: tdata, row: r, column: c, value: val }),
+          success: function(data) {
+            alert(data);
+            // this.setState({data: data});
+          }.bind(this),
+          error: console_error.bind(this)
+        });
       }
     }
   , render: function() {
@@ -90,7 +109,7 @@
   });
 
   React.renderComponent(
-    <Table/>,
+    <Table url="/sudoku/submit" />,
     document.getElementById('sudoku')
   );
   </script>
