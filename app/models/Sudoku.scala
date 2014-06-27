@@ -1,73 +1,69 @@
 package models
 
-// def catOptions [A, T[_]] (xs: Traversable[Option[A]])(implicit cast:
-// Traversable[A] => T[A]) : T[A] = {
-// def catOptions [A] (xs: Traversable[Option[A]]) : Traversable[A] = {
-//   xs.filter(_.nonEmpty).map(_.get)
-// }
+class Sudoku(
+  // The set of symbols used (normally 1 through 9).
+  symbols: Set[Int],
 
-class Sudoku (symbols: Set[Int], values: Vector[Option[Int]]) {
+  // A flat Vector of all cell values.
+  // Empty cells are None, filled cells are Some(value).
+  values: Vector[Option[Int]]
+) {
+
+  // == Initialization ===
+
+  // In a regular sudoku, there are 9 symbols,
   val nrOfSymbols         = symbols.size
+
+  // the side of a block has size 3,
   private val blockSideD  = scala.math.sqrt(nrOfSymbols)
   val blockSide           = blockSideD.toInt
-  val requiredTableSize   = nrOfSymbols * nrOfSymbols
-  
-  // // These store possibilities left per column/row/block.
-  // // This seemed like a good idea and should be faster (when mass-querying
-  // // possibilities), but isn't.
-  // val unit = (0 to nrOfSymbols - 1)
-  // lazy val allColumns = unit.map { col =>
-  //   symbols -- catOptions(unit.map { row => table(index(row, col)) })
-  // }
-  // lazy val allRows = unit.map { row =>
-  //   symbols -- catOptions(unit.map { col => table(index(row, col)) })
-  // }
-  // val smallUnit = (0 to blockSide - 1)
-  // val blocks = for (a <- smallUnit; b <- smallUnit) yield (a,b)
-  // lazy val allBlocks = blocks.map { case (bRow, bCol) =>
-  //   val row0 = bRow * blockSide
-  //   val col0 = bCol * blockSide
-  //   symbols -- catOptions(blocks.map { case (row, col) =>
-  //     table(index(row0 + row, col0 + col))
-  //   })
-  // }
 
+  // and there are 9x9 = 81 cells in total.
+  val requiredTableSize   = nrOfSymbols * nrOfSymbols
+
+  // Check for irregular sudokus.
   if (blockSide != blockSideD) {
     throw new IllegalArgumentException("nrOfSymbols should be a square")
   }
-
+  
+  // Pad the specified values to the exact number of cells.
   if (values.size > requiredTableSize) {
     throw new IllegalArgumentException("too many values")
   }
   val table = values.padTo(requiredTableSize, None)
 
-  private def checkCoor(what: String, i: Int) : Int = {
-    if (i < 0 || i > nrOfSymbols) {
-      throw new IndexOutOfBoundsException(what + "=" + i.toString)
-    } else {
-      return i
-    }
-  }
+  
+  // == Function definitions ===
 
-  /* private */ def index(row: Int, col: Int) : Int = {
+  // Convert from 2d coordinates to flat Vector index.
+  private def index(row: Int, col: Int) : Int = {
     checkCoor("row", row)
     checkCoor("col", col)
 
     row * nrOfSymbols + col
   }
+  
+  // Bounds checker.
+  private def checkCoor(what: String, i: Int) = {
+    if (i < 0 || i > nrOfSymbols) {
+      throw new IndexOutOfBoundsException(what + "=" + i.toString)
+    } else {
+      i
+    }
+  }
 
-  def toRow(index: Int)     : Int = index / nrOfSymbols
-  def toColumn(index: Int)  : Int = index % nrOfSymbols
-  def toBlock(index: Int)   : Int = toBlock(toRow(index), toColumn(index))
-  def toBlock(row: Int, col: Int) : Int
+  // Convert from flat index to row or column.
+  private def toRow(index: Int) : Int
+    = index / nrOfSymbols
+  private def toColumn(index: Int) : Int
+    = index % nrOfSymbols
+
+  // Get the block number in which the specified cell lives.
+  private def toBlock(row: Int, col: Int) : Int
     = row / blockSide * blockSide + col / blockSide
-
-  // def possibilities_(row: Int, col: Int) : Set[Int] = {
-  //   allRows(row) & allColumns(col) & allBlocks(toBlock(index(row, col)))
-  // }
-
+  
   def allCells() = {
-    table.indices.map ( i => (toRow(i), toColumn(i)) )
+    table.indices.map { i => (toRow(i), toColumn(i)) }
   }
   
   // Return all cell indices that are visible from the given (row, col)
@@ -75,34 +71,40 @@ class Sudoku (symbols: Set[Int], values: Vector[Option[Int]]) {
     val block = toBlock(row, col)
 
     allCells().filter { case (row2, col2) =>
+
+      // The other cell should share a coordinate with this cell:
       (col == col2 || row == row2 || block == toBlock(row2, col2)) &&
+      // And it should not be the same cell, unless we want to include ourselves:
       (includeSelf || !(col == col2 && row == row2))
     }
   }
-
-  def possibilities(row: Int, col: Int) : Set[Int] = {
-    var poss  = symbols
-
+  
+  // Return all possible values of the given row and column.
+  def possibilities(row: Int, col: Int) = {
+    // We start with all symbols.
+    var possible = symbols
+    
+    // The values of every visible cell are not possible for this cell.
     visibleFrom(row, col, false).foreach { case (row2, col2) =>
-      // Remove the value in cell there from possibilities.
-      table(index(row2, col2)).foreach { value => poss = poss - value }
 
-      // This would be a more clear but more verbose way:
-      // table(there) match {
-      //   case Some(value) => poss = poss - value
-      //   case None =>  // ugly no-op
-      // }
+      // Remove the value in the other cell from the possibilities.
+      // Option.foreach fires only if the cell contains Some value. If there is
+      // None, we do nothing.
+      table(index(row2, col2)).foreach { value => possible = possible - value }
+
     }
 
-    return poss
+    possible
   }
 }
 
 object Sudoku {
-  // Convenience function. Create a sudoku by specifying min and max symbol and
-  // a Vector in which cells are just an Int and empty cells are 0.
-  def create(min: Int, max: Int, values: Vector[Int]): Sudoku = {
-    return new Sudoku((min to max).toSet, values.map { n =>
+  // Create a sudoku by specifying min and max symbol and a Vector of Ints.
+  // Empty cells are 0.
+  def create(min: Int, max: Int, values: Vector[Int]) = {
+    val symbols = (min to max).toSet
+
+    new Sudoku(symbols, values.map { n =>
       n match {
         case 0 => None
         case n => Some(n)
