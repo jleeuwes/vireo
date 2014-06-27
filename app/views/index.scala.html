@@ -8,6 +8,9 @@
   Layne</a>, licensed <a
   href="https://creativecommons.org/licenses/by-nc/2.0/">cc-by-nc</a>;
   it's the species Vireo Huttoni)</p>
+
+  <p>Fill out the numbers from your paper sudoku, and Vireo will assist you in
+  solving it.</p>
   
   <p>The tiny numbers next to the cells indicate which values are possible.
   Cells with conflicting values are marked red.
@@ -36,7 +39,8 @@
   // Sum sudoku number possibilities as if they are bits.
   // For instance: possibilities [2, 3, 8] are interpreted as
   // 010000110, which is 2^1+2^2+2^7 = 134. This number is used to get the image
-  // containing the right combination of tiny numbers. They are pre-generated.
+  // containing the right combination of tiny numbers.
+  // They are pre-generated (see Combi.hs).
   var bitSum = function(xs) {
     return xs.reduce(function(accum, v) {
       return accum + Math.pow(2, v-1);
@@ -171,7 +175,7 @@
       if (value == 0) value = '';
       
       // Create text and image representation of the possible values
-      // for this cell.
+      // for this cell. The images are pre-generated (see Combi.hs).
       var nums      = this.props.possible;
       var numStr    = nums.join("");
       var numImg    = "/assets/images/pat" + bitSum(nums) + ".png";
