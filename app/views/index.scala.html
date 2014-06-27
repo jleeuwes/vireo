@@ -1,17 +1,27 @@
-@main("vireo sudoku") {
+@(title: String = "vireo sudoku helper")
+
+@main(title) {
   <h1><img  src="@routes.Assets.at("images/vireo.png")"
-            alt="vireo huttoni"/> vireo sudoku</h1>
+            alt="vireo huttoni"/> @title</h1>
   <p class="credits">(image by <a
   href="http://www.flickr.com/photos/minette_layne/2893938782/">Minette
   Layne</a>, licensed <a
-  href="https://creativecommons.org/licenses/by-nc/2.0/">cc-by-nc</a>)</p>
+  href="https://creativecommons.org/licenses/by-nc/2.0/">cc-by-nc</a>;
+  it's the species Vireo Huttoni)</p>
   
-  <p>Werkt dit?</p>
+  <p>The tiny numbers next to the cells indicate which values are possible.
+  Cells with conflicting values are marked red.
+  Nothing is stored, so your sudoku will be gone after a refresh!</p>
+
+  <p>All code is found <a
+  href="https://github.com/jleeuwes/vireo">on github</a>.</p>
 
   <div id="sudoku"></div>
   <script type="text/jsx">
   /** @@jsx React.DOM */
-
+  
+  // Prepare an empty sudoku (as a 2d array),
+  // in which all values are still possible everywhere.
   var numbers       = [];
   var possibilities = [];
   for (var r = 0; r < 9; r++) {
@@ -23,109 +33,168 @@
     }
   }
 
-  var sum = function(xs) {
+  // Sum sudoku number possibilities as if they are bits.
+  // For instance: possibilities [2, 3, 8] are interpreted as
+  // 010000110, which is 2^1+2^2+2^7 = 134. This number is used to get the image
+  // containing the right combination of tiny numbers. They are pre-generated.
+  var bitSum = function(xs) {
     return xs.reduce(function(accum, v) {
-      return accum + v;
+      return accum + Math.pow(2, v-1);
+    }, 0);
+  }
+  
+  // Send an ajax request with a JSON body.
+  var ajax = function(url, data, success) {
+    // http://stackoverflow.com/questions/12693947/jquery-ajax-how-to-send-json-instead-of-querystring
+    $.ajax({
+      url:          url,
+      type:         'POST',
+      dataType:     'json',
+      contentType:  'application/json',
+      data:         data,
+      success:      success,
+      error:        function(xhr, status, err) {
+                      console.error(url, status, err.toString());
+                    }
     });
   }
+  
+  // React component: the complete sudoku table.
+  var Table = React.createClass({
+    // Called by React.
+    getInitialState: function() {
+      return {
+        // 2d array of cell values (0 if empty):
+        tdata: numbers,
+        // 2d array with an array for each cell, containing all possible values
+        possible: possibilities
+      };
+    },
 
-  var console_error = function(xhr, status, err) {
-    console.error(this.props.url, status, err.toString());
-  }
-
-  var Table = React.createClass(
-  { getInitialState: function() {
-      return { tdata: numbers, possible: possibilities };
-    }
-  , cellChanged: function(r, c, val) {
+    // Callback that we pass to cells to send us their value updates.
+    cellChanged: function(r, c, val) {
+      // This will result in NaN for unparseable inputs:
       val = parseInt(val);
+
       if (val > 9) {
         // Take last digit when appending, so fiddling with backspace or
         // selecting is not necessary.
         val = val % 10;
       }
-      if(!(val >= 0 && val <= 9)) {
+      if(!(val >= 0)) {
+        // Check for out of range values. We use an inverted test so we also
+        // catch NaN (which is smaller nor larger than 0).
         val = 0;
       }
       
+      // We're being a bit sneaky here. Update the value in-place and notify
+      // React by setting the state to itself.
       var tdata = this.state.tdata;
       tdata[r][c] = val;
-      this.setState(this.state); // I think I'm cheating
-      $.ajax({
-        // http://stackoverflow.com/questions/12693947/jquery-ajax-how-to-send-json-instead-of-querystring
-        url: this.props.url,
-        type: 'POST',
-        dataType: 'json',
-        contentType: 'application/json',
-        data: JSON.stringify({ table: tdata, row: r, column: c, value: val }),
-        success: function(changes) {
-          var possible = this.state.possible
-          changes.forEach(function(change) {
-            possible[change.row][change.column] = change.possible
-          });
-          this.setState(this.state); // cheating again
-        }.bind(this),
-        error: console_error.bind(this)
-      });
-    }
-  , render: function() {
-      var changed = this.cellChanged;
-      var possible = this.state.possible;
-      var rows = this.state.tdata.map(function(rdata, i) {
-        return <Row cellChanged={changed} iRow={i} rdata={rdata}
-        possible={possible[i]} />;
-      });
-      return (
-        <table>
-        {rows}
-        </table>
+      this.setState(this.state);
+      
+      // Ask the server for updated possible values.
+      ajax(
+        this.props.url,
+        JSON.stringify({ table: tdata, row: r, column: c, value: val }),
+        this.changesReceived
       );
+    },
+
+    // Process updated possibilities from an ajax reply.
+    changesReceived: function(changes) {
+      var possible = this.state.possible
+
+      // Each change gives us coordinates and a new list of possible values.
+      changes.forEach(function(change) {
+        possible[change.row][change.column] = change.possible
+      });
+
+      // Again, we updated in-place and set the state to itself.
+      this.setState(this.state);
+    },
+
+    // Called by React.
+    render: function() {
+      // Create a table with Rows and propagate callback, one row of tdata and
+      // one row of possible values.
+      var cellChanged = this.cellChanged;
+      var possible    = this.state.possible;
+
+      var rows = this.state.tdata.map(function(rdata, i) {
+        return <Row
+          cellChanged={cellChanged}
+          iRow={i}
+          rdata={rdata}
+          possible={possible[i]} />;
+      });
+
+      return <table>{rows}</table>;
     }
   });
-
+  
+  // A Row is just a <tr> with Cells.
   var Row = React.createClass({
     render: function() {
-      var iRow = this.props.iRow;
-      var possible = this.props.possible;
+      // Create Cells and propagate callback, row number, one cell of tdata and
+      // one set of possible values.
       var cellChanged = this.props.cellChanged;
+      var iRow        = this.props.iRow;
+      var possible    = this.props.possible;
+
       var cells = this.props.rdata.map(function(cdata, i) {
-        return <Cell cellChanged={cellChanged} iRow={iRow} iCol={i}
-        cdata={cdata} possible={possible[i]} />;
+        return <Cell
+          cellChanged={cellChanged}
+          iRow={iRow} iCol={i}
+          cdata={cdata}
+          possible={possible[i]} />;
       });
+
       return <tr>{cells}</tr>;
     }
   });
-
+  
+  // A Cell is a <td> with an input field and an image showing possible values.
   var Cell = React.createClass({
+    // All changes are propagated up using the cellChanged callback.
     handleChange: function(event) {
       this.props.cellChanged
         ( this.props.iRow
         , this.props.iCol
         , event.target.value
         );
-    }
-  , render: function() {
+    },
+    
+    render: function() {
       var value = this.props.cdata;
+      // Show 0 as an empty cell:
       if (value == 0) value = '';
-
+      
+      // Create text and image representation of the possible values
+      // for this cell.
       var nums      = this.props.possible;
       var numStr    = nums.join("");
-      var numBitPat = sum(nums.map(function(i) { return Math.pow(2, i-1); }));
-      var numImg    = "/assets/images/pat" + numBitPat + ".png";
-      
+      var numImg    = "/assets/images/pat" + bitSum(nums) + ".png";
+        
+      // Apply relevant CSS classes.
       var classes = React.addons.classSet({
         'empty':  value == '',
         'wrong':  value != '' && nums.indexOf(value) == -1
       });
 
-      return  <td><input type="text" size="1" value={value}
+      return <td>
+              <input
+                type="text"
+                size="1"
+                value={value}
                 className={classes}
                 onChange={this.handleChange} />
-              <img src={numImg} alt={numStr} /></td>;
-              // partial application for handleChange would be nice
+              <img src={numImg} alt={numStr} />
+            </td>;
     }
   });
-
+  
+  // Put the component hierarchy inside the placeholder div.
   React.renderComponent(
     <Table url="/sudoku/submit" />,
     document.getElementById('sudoku')

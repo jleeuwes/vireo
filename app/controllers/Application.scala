@@ -4,7 +4,7 @@ import models._
 
 import play.api._
 import play.api.mvc._
-import play.api.libs.json._ // JSON library
+import play.api.libs.json._
 
 object Application extends Controller {
 
@@ -22,22 +22,19 @@ object Application extends Controller {
         BadRequest(JsError.toFlatJson(errors))
       }
     , sudokuSubmit => {
+        // Create a 9x9 sudoku from the data received,
         val sudoku = sudokuSubmit.toSudoku(1,9)
+        
+        // and generate the changes to the possibilities in each cell that is
+        // visible from the changed cell.
         val changes = sudoku.visibleFrom(sudokuSubmit.row, sudokuSubmit.column).map
           { case (r,c) =>
             Json.obj("row" -> r, "column" -> c, "possible" -> sudoku.possibilities(r,c))
           }
 
-        print(changes)
         Ok(Json.toJson(changes))
       }
     )
-  }
-
-  def javascriptRoutes = Action { implicit request =>
-    Ok(Routes.javascriptRouter("jsRoutes")(
-      controllers.routes.javascript.Application.sudokuSubmit
-    ));
   }
   
 }
