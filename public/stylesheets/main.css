@@ -30,3 +30,19 @@ input.wrong {
   background-color: #faa;
 }
 
+table {
+    border: solid 2px black;
+    border-collapse: collapse;
+}
+
+td {
+    padding: 5px;
+}
+
+tr td:nth-child(3n) {
+    border-right: solid 2px black;
+}
+
+table tr:nth-child(3n) {
+    border-bottom: solid 2px black;
+}
